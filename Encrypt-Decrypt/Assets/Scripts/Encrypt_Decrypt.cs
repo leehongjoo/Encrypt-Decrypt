@@ -32,6 +32,7 @@ public class Encrypt_Decrypt : MonoBehaviour
         bp.filter = "txt files (*.txt)|*.txt";
         bp.filterIndex = 0;
         bp.initialDir = @"C:\cmd";
+        EEGDataString = "";
         new fileBrowser().OpenFileBrowser(bp, result =>
         {
             FileInfo fileInfo = new FileInfo(result);
@@ -91,6 +92,7 @@ public class Encrypt_Decrypt : MonoBehaviour
         bp.filter = "ped files (*.ped)|*.ped";
         bp.filterIndex = 0;
         bp.initialDir = @"C:\cmd";
+        textData = null;
         new fileBrowser().OpenFileBrowser(bp, result =>
         {
             FileInfo fileInfo = new FileInfo(result);
