@@ -108,16 +108,16 @@ public class TextData
     public string ChannelNumber;
     public string SamplingRate;
     public string TotalSample;
-    public int TotalTime;
-    public string Data;
-    public TextData(string EN, string startTime, string endTime, string channelNumber, string samplingrate, int totalTime, string data)
+    public string EEGData;
+    
+    public TextData(string EN, string startTime, string endTime, string channelNumber, string samplingrate, string totalsample, string data)
     {
         EquipmentName = EN;
         StartTime = startTime;
         EndTime = endTime;
         ChannelNumber = channelNumber;
         SamplingRate = samplingrate;
-        TotalTime = totalTime;
-        Data = data;
+        TotalSample = totalsample;
+        EEGData = data;
     }
 }
