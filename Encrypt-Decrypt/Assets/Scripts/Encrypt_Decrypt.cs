@@ -24,7 +24,7 @@ public class Encrypt_Decrypt : MonoBehaviour
     private string samplingRateString;
     private string TotalSampleString;
     private string EEGDataString = "";
-    private TextData textData;
+    private PED textData;
     public void TxtFileLoad()
     {
 #if UNITY_STANDALONE_WIN
@@ -65,7 +65,7 @@ public class Encrypt_Decrypt : MonoBehaviour
     }
     public void EncryptPEDFile()
     {
-        TextData ped = new TextData(EquipmentNameString, StartTimeString, EndTimeString, ChannelNumberString, samplingRateString, 
+        PED ped = new PED(EquipmentNameString, StartTimeString, EndTimeString, ChannelNumberString, samplingRateString, 
             TotalSampleString, EEGDataString);
         //string saveFileName = "PanaxtosTextData";
         //string path = "C:/Users/KimKyoungHoon/Desktop/이이사/absc.abcd";
@@ -82,7 +82,7 @@ public class Encrypt_Decrypt : MonoBehaviour
             {
                 directoryInfo.Create();
             }
-            CryptManager.Save(ped, path);
+            CryptManager.SavePEDFile(ped, path);
         });
     }
     public void PEDFileDecrypt()
@@ -98,13 +98,16 @@ public class Encrypt_Decrypt : MonoBehaviour
             FileInfo fileInfo = new FileInfo(result);
             if (fileInfo.Exists)
             {
-                textData = CryptManager.Load(result);
+                textData = CryptManager.LoadPEDFile(result);
                 EquipmentName.text = textData.EquipmentName;
                 StartTime.text = textData.StartTime;
                 EndTime.text = textData.EndTime;
                 ChannelNumber.text = textData.ChannelNumber;
                 samplingRate.text = textData.SamplingRate;
                 TotalSample.text = textData.TotalSample;
+                Debug.Log(textData.EEGData[0]);
+                Debug.Log(textData.EEGData[1]);
+                Debug.Log(textData.EEGData[2]);
             }
         });
 #endif
@@ -133,6 +136,7 @@ public class Encrypt_Decrypt : MonoBehaviour
             writer.WriteLine(textData.ChannelNumber);
             writer.WriteLine(textData.SamplingRate);
             writer.WriteLine(textData.TotalSample);
+            writer.WriteLine();
             writer.WriteLine(textData.EEGData);
             writer.Close();
         });
