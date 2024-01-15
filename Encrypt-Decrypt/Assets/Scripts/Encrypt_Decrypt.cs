@@ -7,6 +7,9 @@ using UnityEngine;
 using System.Runtime.InteropServices;
 using System;
 using System.Text;
+using UnityEngine.Windows;
+using System.Security.Policy;
+using Ookii.Dialogs;
 
 public class Encrypt_Decrypt : MonoBehaviour
 {
@@ -17,6 +20,9 @@ public class Encrypt_Decrypt : MonoBehaviour
     public TMP_Text samplingRate;
     public TMP_Text TotalSample;
     public TMP_Text StatusText;
+
+    public bool IsPed;
+    public string filePath;
 
     private string EquipmentNameString;
     private string StartTimeString;
@@ -32,6 +38,10 @@ public class Encrypt_Decrypt : MonoBehaviour
     private string bfnString = "";
     private string encryptString;
 
+    void Start()
+    {
+        IsPed = false;
+    }
     public void TxtFileLoad()
     {
 #if UNITY_STANDALONE_WIN
@@ -191,21 +201,28 @@ public class Encrypt_Decrypt : MonoBehaviour
         string result = AESCrypto.AESDecrypt128(encryptString);
         Debug.Log(result);
     }
-    public void DecryptDataMakeTxtFile2()
-    {
 
-    }
     public void bqiFileLoad()
     {
 #if UNITY_STANDALONE_WIN
         var bp = new BrowserProperties();
-        bp.filter = "bqi mqi files (*.bqi)|*.bqi|(*.mqi)|*.mqi";
+        bp.filter = "bqi mqi files (*.bqi)|*.bqi|(*.mqi)|*.mqi|(*.mqf)|*.mqf|(*.ped)| *.ped";
         bp.filterIndex = 0;
         bp.initialDir = @"C:\cmd";
         EEGDataString = "";
         new fileBrowser().OpenFileBrowser(bp, result =>
         {
+            filePath = result;
             FileInfo fileInfo = new FileInfo(result);
+            string extension = fileInfo.Name.Substring(fileInfo.Name.LastIndexOf('.', fileInfo.Name.Length - 1) + 1, 3);
+            if(extension == "ped")
+            {
+                IsPed = true;
+            }
+            else
+            {
+                IsPed = false;
+            }
             string line = "";
             if (fileInfo.Exists)
             {
@@ -239,17 +256,53 @@ public class Encrypt_Decrypt : MonoBehaviour
                 directoryInfo.Create();
             }
             StreamWriter sw = new StreamWriter(path, true, Encoding.UTF8);
-            string data = AESCrypto.AESDecrypt128(plainString);
+            string data = "";
+            if(IsPed)
+            {
+                PED ped = CryptManager.LoadPEDFile(filePath);
+                data = LoadPEDToString(ped);
+            }
+            else
+            {
+                data = AESCrypto.AESDecrypt128(plainString);
+            }
             sw.Write(data);
             sw.Close();
             StatusText.text = " txt로 변경 저장 완료";
         });
     }
+    private string LoadPEDToString(PED ped)
+    {
+        string en = "S20 BT";
+        string StartTime = ped.StartTime;
+        string EndTime = ped.EndTime;
+        string ChannelNumber = ped.ChannelNumber;
+        string samplingRate = ped.SamplingRate;
+        string TotalSample = ped.TotalSample + "\n";
+        string data = ped.EEGData;
+
+        string plainString = "";
+        plainString += en;
+        plainString += "\n";
+        plainString += StartTime;
+        plainString += "\n";
+        plainString += EndTime;
+        plainString += "\n";
+        plainString += "\n";
+        plainString += ChannelNumber;
+        plainString += "\n";
+        plainString += samplingRate;
+        plainString += "\n";
+        plainString += TotalSample;
+        plainString += "\n";
+        plainString += data;
+        return plainString;
+    }
     public void bqfFileLoad()
     {
 #if UNITY_STANDALONE_WIN
         var bp = new BrowserProperties();
-        bp.filter = "bqf files (*.bqf)|*.bqf";
+        bp.filter = "bqf files (*.bqf)|*.bqf|(*.mqf)| *.mqf|(*.ped)| *.ped";
         bp.filterIndex = 0;
         bp.initialDir = @"C:\cmd";
         EEGDataString = "";
@@ -295,4 +348,174 @@ public class Encrypt_Decrypt : MonoBehaviour
             StatusText.text = " txt로 변경 저장 완료";
         });
     }
+    public void LoadDecryptFile()
+    {
+        var bp = new BrowserProperties();
+        bp.filter = "txt files (*.txt)|*.txt|(*.bqf)|*.bqf|(*.bqi)|*.bqi|(*.mqi)|*.mqi|(*.mqf)|*.mqf";
+        bp.filterIndex = 0;
+        bp.initialDir = @"C:\cmd";
+        plainString = "";
+        new fileBrowser().OpenFileBrowser(bp, result =>
+        {
+            FileInfo fileInfo = new FileInfo(result);
+            string line = "";
+            if (fileInfo.Exists)
+            {
+                StreamReader reader = new StreamReader(result);
+                while ((line = reader.ReadLine()) != null)
+                {
+                    plainString += line;
+                    plainString += '\n';
+                }
+                plainString = plainString.Substring(0, plainString.Length - 1);
+                reader.Close();
+            }
+            else
+            {
+                // 에러 코드 
+                line = "파일이 없습니다";
+            }
+        });
+        StatusText.text = " Load 완료";
+    }
+    public void MakeEncryptBQIFile()
+    {
+        var extensionList = new[]
+        {
+            new ExtensionFilter("EEGData", "bqi"),
+        };
+        StandaloneFileBrowser.SaveFilePanelAsync("Save File", "", "", extensionList, (string path) =>
+        {
+            if (path == "")
+                return;
+            DirectoryInfo directoryInfo = new DirectoryInfo(Path.GetDirectoryName(path));
+            if (!directoryInfo.Exists)
+            {
+                directoryInfo.Create();
+            }
+            StreamWriter sw = new StreamWriter(path, true, Encoding.UTF8);
+            string data = AESCrypto.AESEncrypt128(plainString);
+            sw.Write(data);
+            sw.Close();
+            StatusText.text = " bqi로 변경 저장 완료";
+        });
+    }
+    public void MakeEncryptMQIFile()
+    {
+        var extensionList = new[]
+        {
+            new ExtensionFilter("EEGData", "mqi"),
+        };
+        StandaloneFileBrowser.SaveFilePanelAsync("Save File", "", "", extensionList, (string path) =>
+        {
+            if (path == "")
+                return;
+            DirectoryInfo directoryInfo = new DirectoryInfo(Path.GetDirectoryName(path));
+            if (!directoryInfo.Exists)
+            {
+                directoryInfo.Create();
+            }
+            StreamWriter sw = new StreamWriter(path, true, Encoding.UTF8);
+            string data = AESCrypto.AESEncrypt128(plainString);
+            sw.Write(data);
+            sw.Close();
+            StatusText.text = " mqi로 변경 저장 완료";
+        });
+    }
+    public void MakeEncryptBQFFile()
+    {
+        var extensionList = new[]
+        {
+            new ExtensionFilter("EEGData", "bqf"),
+        };
+        StandaloneFileBrowser.SaveFilePanelAsync("Save File", "", "", extensionList, (string path) =>
+        {
+            if (path == "")
+                return;
+            DirectoryInfo directoryInfo = new DirectoryInfo(Path.GetDirectoryName(path));
+            if (!directoryInfo.Exists)
+            {
+                directoryInfo.Create();
+            }
+            StreamWriter sw = new StreamWriter(path, true, Encoding.UTF8);
+            string data = AESCrypto.AESEncrypt128(plainString);
+            sw.Write(data);
+            sw.Close();
+            StatusText.text = " bqf로 변경 저장 완료";
+        });
+    }
+    public void MakeEncryptPEDFile()
+    {
+        var extensionList = new[]
+        {
+            new ExtensionFilter("EEGData", "ped"),
+        };
+        StandaloneFileBrowser.SaveFilePanelAsync("Save File", "", "", extensionList, (string path) =>
+        {
+            if (path == "")
+                return;
+            DirectoryInfo directoryInfo = new DirectoryInfo(Path.GetDirectoryName(path));
+            if (!directoryInfo.Exists)
+            {
+                directoryInfo.Create();
+            }
+
+            CryptManager.SavePEDFile(MakePED(plainString), path);
+            StatusText.text = " ped로 변경 저장 완료";
+        });
+    }
+    private PED MakePED(string pedString)
+    {
+        string[] ALLText = pedString.Split('\n');
+        string startTimeString = ALLText[1];
+        string endTimeString = ALLText[2];
+        string ChannelNumber = ALLText[4];
+        string SamplingRateString = ALLText[5];
+        string sample = ALLText[6];
+        string data = "";
+
+        for(int i= 8; i<ALLText.Length; i++)
+        {
+            data += ALLText[i];
+            if(i != ALLText.Length-1)
+            {
+                data += "\n";
+            }
+            
+        }
+        PED ped = new PED("S20 BT", startTimeString, endTimeString, ChannelNumber, SamplingRateString, sample, data);
+        return ped;
+    }
+    #region All folder search and Decrypt Encrypt
+    public void AllSearchDecrypt()
+    {
+#if UNITY_STANDALONE_WIN
+        var bp = new BrowserProperties();
+
+        bp.initialDir = @"C:\cmd";
+        
+        new fileBrowser().OpenFolderBrowser(bp, result =>
+        {
+            string[] files = System.IO.Directory.GetFiles(result, "*.ped", SearchOption.AllDirectories);
+            foreach (string file in files)
+            {
+                FileInfo fileInfo = new FileInfo(file);
+                string saveFileName = fileInfo.FullName.Substring(0, fileInfo.FullName.Length - 4) + ".txt";
+                StreamWriter sw = new StreamWriter(saveFileName, true, Encoding.UTF8);
+                string data = "";
+
+                PED ped = CryptManager.LoadPEDFile(file);
+                data = LoadPEDToString(ped);
+                sw.Write(data);
+                sw.Close();
+            }
+        });
+        
+        
+        StatusText.text = " txt로 변경 저장 완료";
+#endif
+        //System.IO.DirectoryInfo di = new DirectoryInfo()
+    }
+    #endregion
+
 }
