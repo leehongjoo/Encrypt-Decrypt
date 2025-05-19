@@ -10,6 +10,8 @@ using System.Text;
 using UnityEngine.Windows;
 using System.Security.Policy;
 using Ookii.Dialogs;
+using static UnityEngine.Networking.UnityWebRequest;
+using System.Globalization;
 
 public class Encrypt_Decrypt : MonoBehaviour
 {
@@ -38,9 +40,36 @@ public class Encrypt_Decrypt : MonoBehaviour
     private string bfnString = "";
     private string encryptString;
 
+    private string savePath;
     void Start()
     {
         IsPed = false;
+    }
+    public void DeviceTypeCheck()
+    {
+        if (SystemInfo.deviceType == DeviceType.Handheld)
+        {
+            StatusText.text = "This is a handheld device with a touchscreen.";
+        }
+        else if (SystemInfo.deviceType == DeviceType.Desktop && Input.touchSupported)
+        {
+            StatusText.text = "This desktop device has a touchscreen.";
+        }
+        else
+        {
+            StatusText.text = "This is a desktop device without a touchscreen.";
+        }
+    }
+    public void TouchScreenCheck()
+    {
+        if(Input.touchSupported)
+        {
+            StatusText.text = "터치된다";
+        }
+        else
+        {
+            StatusText.text = "터치안됨";
+        }
     }
     public void TxtFileLoad()
     {
@@ -464,6 +493,30 @@ public class Encrypt_Decrypt : MonoBehaviour
             StatusText.text = " ped로 변경 저장 완료";
         });
     }
+
+    public void ComaTest()
+    {
+        var extensionList = new[]
+        {
+            new ExtensionFilter("EEGData", "txt"),
+        };
+        StandaloneFileBrowser.SaveFilePanelAsync("Save File", "", "", extensionList, (string path) =>
+        {
+            if (path == "")
+                return;
+            DirectoryInfo directoryInfo = new DirectoryInfo(Path.GetDirectoryName(path));
+            if (!directoryInfo.Exists)
+            {
+                directoryInfo.Create();
+            }
+            StreamWriter sw = new StreamWriter(path, true, Encoding.UTF8);
+            double data = 0.14;
+            string a = data.ToString("F2", CultureInfo.InvariantCulture);
+            sw.Write(a);
+            sw.Close();
+            StatusText.text = " test";
+        });
+    }
     private PED MakePED(string pedString)
     {
         string[] ALLText = pedString.Split('\n');
@@ -518,4 +571,105 @@ public class Encrypt_Decrypt : MonoBehaviour
     }
     #endregion
 
+
+
+    #region StreamWriter Test
+    public void StreamWRiterTestAllFileLoad()
+    {
+        var bp = new BrowserProperties();
+        bp.filter = "bqi mqi files (*.bqi)|*.bqi|(*.mqi)|*.mqi|(*.mqf)|*.mqf|(*.ped)| *.ped";
+        bp.filterIndex = 0;
+        bp.initialDir = @"C:\cmd";
+        EEGDataString = "";
+        new fileBrowser().OpenFileBrowser(bp, result =>
+        {
+            filePath = result;
+            FileInfo fileInfo = new FileInfo(result);
+            string extension = fileInfo.Name.Substring(fileInfo.Name.LastIndexOf('.', fileInfo.Name.Length - 1) + 1, 3);
+            if (extension == "ped")
+            {
+                IsPed = true;
+            }
+            else
+            {
+                IsPed = false;
+            }
+            string line = "";
+            if (fileInfo.Exists)
+            {
+                StreamReader reader = new StreamReader(result);
+                line = reader.ReadLine();
+                plainString = line;
+                StatusText.text = " Load 완료";
+                reader.Close();
+            }
+            else
+            {
+                // 에러 코드 
+                line = "파일이 없습니다";
+            }
+        });
+    }
+    public void StreamWRiterTestLoadDataTotxtFile()
+    {
+        var extensionList = new[]
+        {
+            new ExtensionFilter("EEGData", "txt"),
+        };
+        StandaloneFileBrowser.SaveFilePanelAsync("Save File", "", "", extensionList, (string path) =>
+        {
+            if (path == "")
+                return;
+            DirectoryInfo directoryInfo = new DirectoryInfo(Path.GetDirectoryName(path));
+            if (!directoryInfo.Exists)
+            {
+                directoryInfo.Create();
+            }
+            StreamWriter sw = new StreamWriter(path, true, Encoding.UTF8);
+            string data = "";
+            if (IsPed)
+            {
+                PED ped = CryptManager.LoadPEDFile(filePath);
+                data = LoadPEDToString(ped);
+            }
+            else
+            {
+                data = AESCrypto.AESDecrypt128(plainString);
+            }
+            sw.Write(data);
+            sw.Close();
+            StatusText.text = " txt로 변경 저장 완료";
+        });
+    }
+    public void StreamWriterTestFileCreate()
+    {
+        var extensionList = new[]
+        {
+            new ExtensionFilter("EEGData", "txt"),
+        };
+        StandaloneFileBrowser.SaveFilePanelAsync("Save File", "", "", extensionList, (string path) =>
+        {
+            savePath = path;
+            if (path == "")
+                return;
+            DirectoryInfo directoryInfo = new DirectoryInfo(Path.GetDirectoryName(path));
+            if (!directoryInfo.Exists)
+            {
+                directoryInfo.Create();
+            }
+            FileStream fileStream = new FileStream(path, FileMode.Create, FileAccess.Write);
+            StreamWriter sw = new StreamWriter(fileStream);
+            sw.Write("test \n");
+            sw.Flush();
+            sw.Close();
+        });
+    }
+    public void StreamWriterTestOverWrite()
+    {
+        StreamWriter sw = new StreamWriter(savePath, false, Encoding.UTF8);
+        sw.Write("test2");
+        sw.Flush();
+        sw.Close();
+    }
+    #endregion
 }
